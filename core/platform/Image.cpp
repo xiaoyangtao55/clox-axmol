@@ -1313,6 +1313,14 @@ bool Image::initWithPngData(uint8_t* data, ssize_t dataLen)
             bit_depth = 8;
             png_set_expand_gray_1_2_4_to_8(png_ptr);
         }
+        // grayscale is expanded to RGB(A): the R8/RG8 uploads this decode
+        // would otherwise produce are sampled as RGBA by the sprite shaders,
+        // rendering gray PNGs red and gray+alpha PNGs green (watch faces ship
+        // both). premultiplyAlpha() below also assumes 4-channel data.
+        if (color_type == PNG_COLOR_TYPE_GRAY || color_type == PNG_COLOR_TYPE_GRAY_ALPHA)
+        {
+            png_set_gray_to_rgb(png_ptr);
+        }
         // expand any tRNS chunk data into a full alpha channel
         if (png_get_valid(png_ptr, info_ptr, PNG_INFO_tRNS))
         {

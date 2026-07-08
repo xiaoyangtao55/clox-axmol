@@ -86,6 +86,37 @@ tolua_lerror:
     return 0;
 }
 
+// CloX: MediaPlayer:setVolume(volume) — 0..1, mutes video audio while playing.
+static int axlua_video_MediaPlayer_setVolume(lua_State* L)
+{
+    ax::ui::MediaPlayer* self = nullptr;
+#    if _AX_DEBUG >= 1
+    tolua_Error tolua_err;
+    if (!tolua_isusertype(L, 1, "axui.MediaPlayer", 0, &tolua_err))
+        goto tolua_lerror;
+#    endif
+    self = static_cast<ax::ui::MediaPlayer*>(tolua_tousertype(L, 1, 0));
+    if (nullptr == self)
+    {
+        tolua_error(L, "invalid 'self' in function 'axlua_video_MediaPlayer_setVolume'\n", nullptr);
+        return 0;
+    }
+    if (lua_gettop(L) - 1 == 1)
+    {
+        float volume = (float)lua_tonumber(L, 2);
+        self->setVolume(volume);
+        return 0;
+    }
+    luaL_error(L, "%s has wrong number of arguments: %d, was expecting %d\n ", "axui.MediaPlayer:setVolume",
+               lua_gettop(L) - 1, 1);
+    return 0;
+#    if _AX_DEBUG >= 1
+tolua_lerror:
+    tolua_error(L, "#ferror in function 'axlua_video_MediaPlayer_setVolume'.", &tolua_err);
+    return 0;
+#    endif
+}
+
 static void extendMediaPlayer(lua_State* L)
 {
     lua_pushstring(L, "axui.MediaPlayer");
@@ -93,6 +124,7 @@ static void extendMediaPlayer(lua_State* L)
     if (lua_istable(L, -1))
     {
         tolua_function(L, "addEventListener", axlua_video_MediaPlayer_addEventListener);
+        tolua_function(L, "setVolume", axlua_video_MediaPlayer_setVolume);
     }
     lua_pop(L, 1);
 }

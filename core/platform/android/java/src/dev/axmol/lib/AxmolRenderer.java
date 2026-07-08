@@ -63,6 +63,58 @@ public class AxmolRenderer implements GLSurfaceView.Renderer {
         sAnimationInterval = (long) (interval * AxmolRenderer.NANOSECONDSPERSECOND);
     }
 
+    private static final Object sFrameGate = new Object();
+    private static boolean sFrameKicked = false;
+    private static volatile long sBoostUntilNanos = 0;
+    private static final long BOOST_INTERVAL = (long) (1.0f / 60f * AxmolRenderer.NANOSECONDSPERSECOND);
+
+    /**
+     * Wake the render thread out of its FPS-throttle wait so an already-queued
+     * event (touch, bridge dispatch) is processed on the next loop iteration
+     * instead of after the full frame interval — at the 1 FPS static-watchface
+     * cadence the un-kicked wait adds up to a second of input latency.
+     * Call AFTER GLSurfaceView.queueEvent so the event is in the queue when
+     * the render thread wakes.
+     */
+    public static void kickFrame() {
+        synchronized (sFrameGate) {
+            sFrameKicked = true;
+            sFrameGate.notifyAll();
+        }
+    }
+
+    /**
+     * Run at full frame rate (60 FPS cap) for the next {@code seconds},
+     * overriding the low-FPS idle throttle, then decay back automatically.
+     * Everything user-visible that composites with or reads the GL surface —
+     * touch feedback, gesture/overlay animations, blur backdrop captures —
+     * needs real frames while the user interacts, regardless of what the
+     * watchface itself requires. Call from the UI thread on any touch.
+     */
+    public static void boostFrames(float seconds) {
+        long until = System.nanoTime() + (long) (seconds * AxmolRenderer.NANOSECONDSPERSECOND);
+        if (until > sBoostUntilNanos) sBoostUntilNanos = until;
+        // While the surface is occluded (forced 1 FPS), a kick per touch event
+        // would wake the render thread out of its wait each time — a scroll on
+        // the covering overlay drives the invisible face at touch-sample rate.
+        // Keep the boost timestamp so the face resumes at full rate the moment
+        // the cap lifts (setForceLowFps(false) kicks), but skip the wakeup.
+        if (!sForceLowFps) kickFrame();
+    }
+
+    private static volatile boolean sForceLowFps = false;
+
+    /**
+     * Hard-cap rendering at 1 FPS while {@code force} is true, overriding both
+     * the face's configured rate and the touch boost. Used while the GL surface
+     * is fully occluded by an opaque overlay (expanded app list): the face is
+     * invisible, so frames only steal CPU/GPU from the overlay's own rendering.
+     */
+    public static void setForceLowFps(boolean force) {
+        sForceLowFps = force;
+        if (!force) kickFrame();   // resume the normal rate without waiting out a 1s frame
+    }
+
     public void setScreenWidthAndHeight(final int surfaceWidth, final int surfaceHeight) {
         this.mScreenWidth = surfaceWidth;
         this.mScreenHeight = surfaceHeight;
@@ -82,8 +134,10 @@ public class AxmolRenderer implements GLSurfaceView.Renderer {
 
         if (gNativeInitialized) {
             // This must be from an OpenGL context loss
+            android.util.Log.w("AxmolRenderer", "onSurfaceCreated: GL context LOST -> nativeOnContextLost (full reload), isWarmStart=" + isWarmStart);
             nativeOnContextLost(isWarmStart);
         } else {
+            android.util.Log.i("AxmolRenderer", "onSurfaceCreated: first init");
             gNativeInitialized = true;
         }
     }
@@ -103,13 +157,26 @@ public class AxmolRenderer implements GLSurfaceView.Renderer {
          * No need to use algorithm in default(60,90,120... FPS) situation,
          * since onDrawFrame() was called by system 60 times per second by default.
          */
-        if (AxmolRenderer.sAnimationInterval > AxmolRenderer.FPS_CONTROL_THRESHOLD) {
+        long animationInterval = AxmolRenderer.sAnimationInterval;
+        if (sForceLowFps) {
+            // occluded: 1 FPS floor beats face rate AND the touch boost
+            animationInterval = Math.max(animationInterval, AxmolRenderer.NANOSECONDSPERSECOND);
+        } else if (System.nanoTime() < sBoostUntilNanos && animationInterval > BOOST_INTERVAL) {
+            animationInterval = BOOST_INTERVAL;   // interaction boost: full rate
+        }
+        if (animationInterval > AxmolRenderer.FPS_CONTROL_THRESHOLD) {
             final long interval = System.nanoTime() - this.mLastTickInNanoSeconds;
 
-            if (interval < AxmolRenderer.sAnimationInterval) {
-                try {
-                    Thread.sleep((AxmolRenderer.sAnimationInterval - interval) / AxmolRenderer.NANOSECONDSPERMICROSECOND);
-                } catch (final Exception e) {
+            if (interval < animationInterval) {
+                final long waitMs = (animationInterval - interval) / AxmolRenderer.NANOSECONDSPERMICROSECOND;
+                synchronized (sFrameGate) {
+                    try {
+                        if (!sFrameKicked && waitMs > 0) {
+                            sFrameGate.wait(waitMs);
+                        }
+                    } catch (final Exception e) {
+                    }
+                    sFrameKicked = false;
                 }
             }
 

@@ -138,6 +138,10 @@ bool AndroidMediaEngine::setRate(double fRate)
 {
     return context && JniHelper::callBooleanMethod(className, "setRate", context, fRate);
 }
+bool AndroidMediaEngine::setVolume(float volume)   // CloX
+{
+    return context && JniHelper::callBooleanMethod(className, "setVolume", context, volume);
+}
 bool AndroidMediaEngine::setCurrentTime(double fSeekTimeInSec)
 {
     return context && JniHelper::callBooleanMethod(className, "setCurrentTime", context, fSeekTimeInSec);

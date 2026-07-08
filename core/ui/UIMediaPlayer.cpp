@@ -1104,6 +1104,13 @@ void MediaPlayer::setLooping(bool looping)
         pvd->_engine->setLoop(looping);
 }
 
+void MediaPlayer::setVolume(float volume)   // CloX
+{
+    auto pvd = reinterpret_cast<PrivateVideoDescriptor*>(_videoContext);
+    if (pvd->_engine)
+        pvd->_engine->setVolume(volume);
+}
+
 void MediaPlayer::setUserInputEnabled(bool enableInput)
 {
     _userInputEnabled = enableInput;

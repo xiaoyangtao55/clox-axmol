@@ -63,7 +63,12 @@ void updateBlend(backend::BlendDescriptor& blendDescriptor, BlendFunc blendFunc)
     {
         blendDescriptor.sourceRGBBlendFactor        = backend::BlendFactor::SRC_ALPHA;
         blendDescriptor.destinationRGBBlendFactor   = backend::BlendFactor::ONE_MINUS_SRC_ALPHA;
-        blendDescriptor.sourceAlphaBlendFactor      = backend::BlendFactor::SRC_ALPHA;
+        // The ALPHA channel must NOT use SRC_ALPHA: that writes a*a into the
+        // destination, which is invisible on screen (backbuffer alpha is never
+        // displayed) but wrong when the label is rendered into a RenderTexture
+        // — semi-transparent text stores squared alpha and all but vanishes
+        // when the RT is composited (premultiplied-correct dst alpha is a).
+        blendDescriptor.sourceAlphaBlendFactor      = backend::BlendFactor::ONE;
         blendDescriptor.destinationAlphaBlendFactor = backend::BlendFactor::ONE_MINUS_SRC_ALPHA;
     }
     else

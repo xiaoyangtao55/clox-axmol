@@ -45,6 +45,7 @@ public:
     bool close() override;
     bool setLoop(bool bLooping) override;
     bool setRate(double fRate) override;
+    bool setVolume(float volume) override;   // CloX
     bool setCurrentTime(double fSeekTimeInSec) override;
     double getCurrentTime() override { return _currentTime; }
     double getDuration() override { return _duration; }

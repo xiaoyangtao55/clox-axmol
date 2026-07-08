@@ -385,7 +385,11 @@ void Director::calculateDeltaTime()
 
 #if _AX_DEBUG
     // If we are debugging our code, prevent big delta time
-    if (_deltaTime > 0.2f)
+    // CloX: threshold raised 0.2s -> 2s. The launcher throttles static
+    // watchfaces to 1 FPS, so 0.5-1s deltas are legitimate frames, not
+    // debugger pauses; substituting 1/60 starved interval schedulers (the 1s
+    // clock poll froze) and ran actions/tweens in slow motion.
+    if (_deltaTime > 2.0f)
     {
         _deltaTime = 1 / 60.0f;
     }

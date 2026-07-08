@@ -191,6 +191,8 @@ public:
     virtual bool close()                                                             = 0;
     virtual bool setLoop(bool bLooping)                                              = 0;
     virtual bool setRate(double fRate)                                               = 0;
+    // CloX: audio volume (0..1). Non-pure so backends that don't support it compile.
+    virtual bool setVolume(float /*volume*/) { return false; }
     virtual bool setCurrentTime(double fSeekTimeInSec)                               = 0;
     virtual double getCurrentTime()                                                  = 0;
     virtual double getDuration()                                                     = 0;

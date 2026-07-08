@@ -109,6 +109,7 @@ public class AxmolMediaEngine extends DefaultRenderersFactory implements Player.
     private MediaFormat mOutputFormat;
     private boolean mAutoPlay = false;
     private boolean mLooping = false;
+    private float mVolume = 1.0f;    // CloX: audio volume (0..1), applied on player create + live
     private long mNativeObj = 0; // native object address for send event to C++, weak ref
 
     private boolean mPlaybackEnded = false;
@@ -205,6 +206,7 @@ public class AxmolMediaEngine extends DefaultRenderersFactory implements Player.
                 mPlayer.setMediaSource(mediaSource);
                 mPlayer.prepare();
                 mPlayer.setRepeatMode(mLooping ? Player.REPEAT_MODE_ALL : Player.REPEAT_MODE_OFF);
+                mPlayer.setVolume(mVolume);   // CloX: apply cached volume on (re)create
                 mPlayer.setPlayWhenReady(mAutoPlay);
             } catch (Exception ex) {
                 ex.printStackTrace();
@@ -239,6 +241,18 @@ public class AxmolMediaEngine extends DefaultRenderersFactory implements Player.
                     mPlayer.setRepeatMode(mLooping ? Player.REPEAT_MODE_ALL : Player.REPEAT_MODE_OFF);
             });
         }
+        return true;
+    }
+
+    // CloX: set audio volume (0..1). Cached so it survives player recreation.
+    @SuppressWarnings("unused")
+    public boolean setVolume(float volume) {
+        mVolume = volume;
+        if (mPlayer == null) return false;
+        AxmolEngine.runOnUiThread(() -> {
+            if (mPlayer != null)
+                mPlayer.setVolume(mVolume);
+        });
         return true;
     }
 

@@ -255,6 +255,12 @@ public:
     virtual void setPlayRate(float fRate);
 
     /**
+     * CloX: set the audio volume (0..1). Cached and applied on the backend
+     * engine; 0 mutes the video's audio while it keeps playing.
+     */
+    virtual void setVolume(float volume);
+
+    /**
      * Starts playback.
      */
     virtual void play();

@@ -197,6 +197,18 @@ public:
     backend::RenderTarget* getRenderTarget() const { return _currentRT; }
     void setRenderTarget(backend::RenderTarget* rt) { _currentRT = rt; };
 
+    /**
+     * Alpha-accumulate blend override (CloX): while enabled, every blended draw
+     * command has its ALPHA blend factors forced to (ONE, ONE_MINUS_SRC_ALPHA)
+     * — RGB factors untouched — so alpha accumulates as coverage. Scoped by
+     * RenderTexture::setAlphaAccumulate around a bake pass: rendering opaque-under-
+     * semitransparent layers into an RT with the normal non-premultiplied factors
+     * leaves the RT alpha < 1 where a semi layer overlaps an opaque one, so the
+     * flattened sprite composites semi-transparent. Never touched for on-screen draws.
+     */
+    void setAlphaAccumBlend(bool enabled) { _alphaAccumBlend = enabled; }
+    bool getAlphaAccumBlend() const { return _alphaAccumBlend; }
+
     backend::RenderTarget* getDefaultRenderTarget() const { return _defaultRT; }
 
     /* The offscreen render target for RenderTexture to share it */
@@ -546,6 +558,7 @@ protected:
     // the flag for checking whether renderer is rendering
     bool _isRendering      = false;
     bool _isDepthTestFor2D = false;
+    bool _alphaAccumBlend  = false;   // CloX: force ONE/ONE_MINUS_SRC_ALPHA alpha factors (RT bakes)
 
     GroupCommandManager* _groupCommandManager = nullptr;
 

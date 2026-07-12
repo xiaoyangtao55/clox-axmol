@@ -636,6 +636,11 @@ void RenderTexture::onBegin()
 
     _oldRenderTarget = renderer->getRenderTarget();
     renderer->setRenderTarget(_renderTarget);
+
+    // CloX: coverage-accumulating alpha for the layers baked into this RT.
+    _oldAlphaAccumBlend = renderer->getAlphaAccumBlend();
+    if (_alphaAccumulate)
+        renderer->setAlphaAccumBlend(true);
 }
 
 void RenderTexture::onEnd()
@@ -647,6 +652,10 @@ void RenderTexture::onEnd()
     renderer->setViewPort(_oldViewport.x, _oldViewport.y, _oldViewport.width, _oldViewport.height);
 
     renderer->setRenderTarget(_oldRenderTarget);
+
+    // CloX: restore the previous alpha-accumulate state (nesting-safe).
+    if (_alphaAccumulate)
+        renderer->setAlphaAccumBlend(_oldAlphaAccumBlend);
 }
 
 void RenderTexture::begin()

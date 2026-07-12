@@ -692,9 +692,20 @@ void Renderer::drawBatchedTriangles()
 
     for (int i = 0; i < batchesTotal; ++i)
     {
-        auto& drawInfo = _triBatchesToDraw[i];
-        _commandBuffer->updatePipelineState(_currentRT, drawInfo.cmd->getPipelineDescriptor());
+        auto& drawInfo           = _triBatchesToDraw[i];
         auto& pipelineDescriptor = drawInfo.cmd->getPipelineDescriptor();
+        if (_alphaAccumBlend && pipelineDescriptor.blendDescriptor.blendEnabled)
+        {
+            // CloX RT-bake scope: force coverage-accumulating alpha (RGB untouched).
+            PipelineDescriptor pd                          = pipelineDescriptor;
+            pd.blendDescriptor.sourceAlphaBlendFactor      = backend::BlendFactor::ONE;
+            pd.blendDescriptor.destinationAlphaBlendFactor = backend::BlendFactor::ONE_MINUS_SRC_ALPHA;
+            _commandBuffer->updatePipelineState(_currentRT, pd);
+        }
+        else
+        {
+            _commandBuffer->updatePipelineState(_currentRT, pipelineDescriptor);
+        }
         _commandBuffer->setProgramState(pipelineDescriptor.programState);
         _commandBuffer->drawElements(backend::PrimitiveType::TRIANGLE, backend::IndexFormat::U_SHORT,
                                      drawInfo.indicesToDraw, drawInfo.offset * sizeof(_indices[0]));
@@ -724,8 +735,20 @@ void Renderer::drawCustomCommand(RenderCommand* command)
     beginRenderPass();
     _commandBuffer->setVertexBuffer(cmd->getVertexBuffer());
 
-    _commandBuffer->updatePipelineState(_currentRT, cmd->getPipelineDescriptor());
-    _commandBuffer->setProgramState(cmd->getPipelineDescriptor().programState);
+    auto& customPipeline = cmd->getPipelineDescriptor();
+    if (_alphaAccumBlend && customPipeline.blendDescriptor.blendEnabled)
+    {
+        // CloX RT-bake scope: force coverage-accumulating alpha (RGB untouched).
+        PipelineDescriptor pd                          = customPipeline;
+        pd.blendDescriptor.sourceAlphaBlendFactor      = backend::BlendFactor::ONE;
+        pd.blendDescriptor.destinationAlphaBlendFactor = backend::BlendFactor::ONE_MINUS_SRC_ALPHA;
+        _commandBuffer->updatePipelineState(_currentRT, pd);
+    }
+    else
+    {
+        _commandBuffer->updatePipelineState(_currentRT, customPipeline);
+    }
+    _commandBuffer->setProgramState(customPipeline.programState);
 
     auto drawType = cmd->getDrawType();
     if (CustomCommand::DrawType::ELEMENT == drawType)

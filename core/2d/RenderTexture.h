@@ -319,6 +319,15 @@ public:
      * projection matrix.
      */
     inline void setKeepMatrix(bool keepMatrix) { _keepMatrix = keepMatrix; }
+    /**
+     * CloX: composite layers into this RT with coverage-accumulating alpha
+     * (ONE, ONE_MINUS_SRC_ALPHA on the alpha channel; RGB unchanged), so an
+     * opaque layer under a semi-transparent one keeps alpha 1 instead of
+     * dropping below and letting the background bleed through when the baked
+     * sprite is drawn. Applied only between this RT's begin/end.
+     */
+    inline void setAlphaAccumulate(bool enable) { _alphaAccumulate = enable; }
+    inline bool isAlphaAccumulate() const { return _alphaAccumulate; }
     /**Used for grab part of screen to a texture.
      * @param rtBegin The position of renderTexture on the fullRect.
      * @param fullRect The total size of screen.
@@ -406,6 +415,8 @@ protected:
     bool _cachedTextureDirty = false;
 #endif
     bool _keepMatrix = false;
+    bool _alphaAccumulate = false;   // CloX: coverage-accumulating alpha blend during bake
+    bool _oldAlphaAccumBlend = false;   // saved Renderer flag, restored in onEnd (nesting-safe)
     Rect _rtTextureRect;
     Rect _fullRect;
     Rect _fullviewPort;
